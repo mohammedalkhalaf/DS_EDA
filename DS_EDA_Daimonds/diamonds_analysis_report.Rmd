@@ -1,0 +1,114 @@
+---
+title: "Diamonda dataset analysis"
+output:
+  html_document:
+    df_print: paged
+---
+
+ 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(knitr)
+library(tidyverse)
+library(DT)
+library(ggplot2)
+options(knitr.table.format = "html")
+
+#diamonds data reading 
+jems <- read.csv("C:/Users/USER/Desktop/DS_EDA/DS_EDA_Daimonds/diamonds.csv")
+```
+\# data summary 
+```{r}
+jems %>% 
+  summary()%>% 
+  datatable()
+```
+\# price average - median
+```{r}
+jems %>% 
+  summarise(avg= mean(price), median=median(price))
+```
+\# price avg & median deepening on the clarity type 
+
+```{r}
+jems %>% 
+  group_by(clarity) %>% 
+  summarise(avg = mean(price), median=median(price))
+```
+\# price avg & median deepening on the cut type 
+```{r}
+jems %>% 
+  group_by(cut) %>% 
+  summarise(avg = mean(price), median=median(price))
+```
+\# price avg & median deepening on the color type 
+```{r}
+
+jems %>% 
+  group_by(color) %>% 
+  summarise(avg = mean(price), median=median(price))
+```
+I wanted to play around and see if i can predict the carat from the size using very basic formula so i did the following:
+
+diamonds Weight in carats = Length x Width x Depth x Coefficient (estimated because it depends about the cut shape)
+
+L/W Ratio 1.00: Coefficient = 0.0060
+
+L/W Ratio 1.25: Coefficient = 0.0080
+
+L/W Ratio 1.50: Coefficient = 0.0090
+
+L/W Ratio 2.00: Coefficient = 0.0100
+
+L/W Ratio 2.50: Coefficient = 0.0105
+
+since there is only about 10 diamonds that they are far from Coefficient 1 we will use the 0.006
+
+```{r}
+jems <- jems %>% 
+  mutate(ratio = x / y)
+         
+jems <- jems %>% 
+  mutate(carats = x * y * z  * 0.006)
+
+# comparing my results 
+jems <- jems %>% 
+  mutate( diff_percenatge= abs(((carat-carats)/carat)*100))
+
+# avg difference 
+jems %>% 
+  filter(diff_percenatge > 0 & diff_percenatge < 100 ) %>% 
+  summarise(avg = mean(diff_percenatge), median= median(diff_percenatge)) %>% 
+  datatable()
+```
+Plotting the results 
+```{r}
+jems %>% 
+  filter(diff_percenatge > 0 & diff_percenatge < 100 ) %>% 
+  ggplot(aes( x= carat,y=carats))+ geom_jitter()+
+  geom_smooth(method = "lm", se = FALSE)+
+  xlab("Actual")+
+  ylab("Predectied")
+```
+pretty good results :)  
+
+price error from the prediction based on the original price of the diamonds
+
+```{r}
+jems <- jems %>% 
+  mutate(price_unit= price/carat)
+         
+jems <- jems %>% 
+  mutate(new_price= price_unit*carats)
+
+jems <- jems %>% 
+  mutate(price_diff= abs(price - new_price))
+  
+jems %>% 
+  filter(diff_percenatge > 0 & diff_percenatge < 100 ) %>% 
+  summarise(avg = mean(price_diff), median= median(price_diff)) %>% 
+              datatable()
+```
+
